@@ -1,49 +1,36 @@
 language: php
-
 php:
-  - 5.5
-  - 5.6
-  - hhvm
-
+- 5.5
+- 5.6
+- hhvm
 matrix:
   fast_finish: true
   allow_failures:
-    - php: hhvm
-
+  - php: hhvm
 mysql:
   database: travis_ci_drupal_module_example_test
   username: root
   encoding: utf8
-
 before_install:
-  - sudo apt-get update > /dev/null
-
+- sudo apt-get update > /dev/null
 install:
-  # install php packages required for running a web server from drush on php 5.3
-  - sudo apt-get install -y --force-yes php5-cgi php5-mysql
-
-  # add composer's global bin directory to the path
-  # see: https://github.com/drush-ops/drush#install---composer
-  - export PATH="$HOME/.composer/vendor/bin:$PATH"
-
-  # install drush globally
-  - composer global require drush/drush:6.*
-
+- sudo apt-get install -y --force-yes php5-cgi php5-mysql
+- export PATH="$HOME/.composer/vendor/bin:$PATH"
+- composer global require drush/drush:6.*
 before_script:
-  # navigate out of module directory to prevent blown stack by recursive module lookup
-  - cd ../..
-
-  # create new site, stubbing sendmail path with true to prevent delivery errors and manually resolving drush path
-  - mysql -e 'create database travis_ci_drupal_module_example_test'
-  - php -d sendmail_path=`which true` ~/.composer/vendor/bin/drush.php --yes core-quick-drupal --profile=testing --no-server --db-url=mysql://root:@127.0.0.1/travis_ci_drupal_module_example_test --enable=simpletest travis_ci_drupal_module_example_test
-
-  # reference and enable travis_ci_drupal_module_example in build site
-  - ln -s $(readlink -e $(cd -)) travis_ci_drupal_module_example_test/drupal/sites/all/modules/travis_ci_drupal_module_example
-  - cd travis_ci_drupal_module_example_test/drupal
-  - drush --yes pm-enable travis_ci_drupal_module_example
-
-  # start a web server on port 8080, run in the background; wait for initialization
-  - drush runserver 127.0.0.1:8080 &
-  - until netstat -an 2>/dev/null | grep '8080.*LISTEN'; do true; done
-
+- cd ../..
+- mysql -e 'create database travis_ci_drupal_module_example_test'
+- php -d sendmail_path=`which true` ~/.composer/vendor/bin/drush.php --yes core-quick-drupal
+  --profile=testing --no-server --db-url=mysql://root:@127.0.0.1/travis_ci_drupal_module_example_test
+  --enable=simpletest travis_ci_drupal_module_example_test
+- ln -s $(readlink -e $(cd -)) travis_ci_drupal_module_example_test/drupal/sites/all/modules/travis_ci_drupal_module_example
+- cd travis_ci_drupal_module_example_test/drupal
+- drush --yes pm-enable travis_ci_drupal_module_example
+- drush runserver 127.0.0.1:8080 &
+- until netstat -an 2>/dev/null | grep '8080.*LISTEN'; do true; done
 script: drush test-run 'Travis-CI Drupal Module Example' --uri=http://127.0.0.1:8080
+deploy:
+  provider: heroku
+  api_key:
+    secure: fcfr/5LP7grB3WQ77e9ZsMJUcaj++XexRfA9KQngkP50eAZN0GEuMFKCgqB175Viv5KG8B6gQKjwC4gAXvI1m73W/1VwgyFCJ3mUJyc4fUobZYwqtok79RJdtCeDhyMMm850iCM8IOIFC4MYQo52bXaKONlDA5LVk+RsVWPZWOgiaUFosa5lPJmqipe2znvlKj4hndjdDRWcJ+rbhZl1UskD/BkrE05D7zjsJz9KZW3b0088l8lWCdFKNDD3BYXazb03hU3IHvF2jsXSlbIGwGEIwiZ3vUh3YXPxHZP5llIYC9ZoBONPa+JHBdVZtBCTWAKxw9Q2cKEaebiW1xmBwvX1rCsDa3TAOKBWaQINUgZ8qDcTjwldKbd54enFa98Dur3JprNR0VDaQmTphr0CkukCRJODRaEtiRP6VlDHSblTAgF3/hq05eggJqeb5JgQnDquxyVL/ubTU9GI6QzkTwaQ+HK6axFPCDEsXwU22jZs7gGHISPCs4TdR4bG9L4XGeefgHOXpWoQX50mTWfr0W3yDHECAJlr3b/tVgRppfhw9QS8LvmAhhhm6OsMbxQnuF+v218HKKaD/m88fe6qH6CfLu2CQ80nr2gcSrpvScz4chKvi+vkk62Q6cVWy9w67Pt2K++UxP//OZhGEugmeP8dVuv4xm3BDbsQ3UaA0Mw=
+  app: deploy-travis-heroku-drupal
